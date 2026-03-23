@@ -8,6 +8,11 @@ body {
   overflow: hidden;
 }
 
+/* Slightly larger type while keeping layout stable (small root rem bump). */
+html {
+  font-size: 18px;
+}
+
 html,
 body {
   height: 100%;

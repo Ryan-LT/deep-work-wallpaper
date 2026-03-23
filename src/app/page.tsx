@@ -42,6 +42,59 @@ function hashString(str: string) {
   return hash >>> 0;
 }
 
+function cn(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
+type WorkingStatus = "morning" | "afternoon" | "off";
+
+const MORNING_START_MINUTES = 9 * 60;
+const MORNING_END_MINUTES = 11 * 60 + 30;
+const AFTERNOON_START_MINUTES = 13 * 60 + 30;
+const AFTERNOON_END_MINUTES = 17 * 60 + 30;
+
+function getMinutesSinceMidnight(d: Date) {
+  return d.getHours() * 60 + d.getMinutes();
+}
+
+function getWorkingStatus(now: Date): WorkingStatus {
+  const minutes = getMinutesSinceMidnight(now);
+
+  // Inclusive start, exclusive end.
+  if (minutes >= MORNING_START_MINUTES && minutes < MORNING_END_MINUTES) {
+    return "morning";
+  }
+  if (
+    minutes >= AFTERNOON_START_MINUTES &&
+    minutes < AFTERNOON_END_MINUTES
+  ) {
+    return "afternoon";
+  }
+  return "off";
+}
+
+function format12hTimeFromMinutes(totalMinutes: number) {
+  const hours24 = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const ampm = hours24 < 12 ? "AM" : "PM";
+  const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+  return `${hours12}:${String(minutes).padStart(2, "0")} ${ampm}`;
+}
+
+function getNextWorkingStartLabel(now: Date) {
+  const minutes = getMinutesSinceMidnight(now);
+
+  if (minutes < MORNING_START_MINUTES) {
+    return format12hTimeFromMinutes(MORNING_START_MINUTES);
+  }
+  if (minutes >= MORNING_END_MINUTES && minutes < AFTERNOON_START_MINUTES) {
+    return format12hTimeFromMinutes(AFTERNOON_START_MINUTES);
+  }
+
+  // After hours (after afternoon end) -> next is tomorrow morning sprint.
+  return format12hTimeFromMinutes(MORNING_START_MINUTES);
+}
+
 export default function Home() {
   const [now, setNow] = useState(() => new Date());
 
@@ -51,6 +104,15 @@ export default function Home() {
   }, []);
 
   const time = useMemo(() => formatLocalTime(now), [now]);
+  const workingStatus = useMemo(() => getWorkingStatus(now), [now]);
+  const nextStartLabel = useMemo(
+    () => (workingStatus === "off" ? getNextWorkingStartLabel(now) : null),
+    [now, workingStatus]
+  );
+
+  const isMorning = workingStatus === "morning";
+  const isAfternoon = workingStatus === "afternoon";
+  const isOffHours = workingStatus === "off";
 
   const quote = useMemo(() => {
     const key = getNoonAnchoredDateKey(now);
@@ -60,7 +122,12 @@ export default function Home() {
 
   return (
     <>
-      <main className="square-container w-full flex flex-col justify-center px-12 lg:px-16 py-12 relative overflow-hidden bg-background">
+      <main
+        className="square-container w-full flex flex-col justify-center px-12 lg:px-16 py-12 relative overflow-hidden bg-background"
+      >
+        <span className="sr-only" aria-live="polite">
+          {`Current time ${time}`}
+        </span>
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-surface-bright opacity-[0.04] rounded-full blur-[140px] -z-10"></div>
 
         <div className="grid grid-cols-12 gap-8 max-w-6xl mx-auto w-full items-center relative z-10">
@@ -95,36 +162,96 @@ export default function Home() {
                 <h2 className="font-headline text-on-surface-variant text-[9px] uppercase tracking-[0.3em] font-bold">
                   Working Hours
                 </h2>
+                <span
+                  className={cn(
+                    "whitespace-nowrap text-[9px] uppercase tracking-[0.3em] font-bold px-2 py-1 rounded border",
+                    isOffHours
+                      ? "border-outline-variant/10 bg-surface-bright/10 text-on-surface-variant/60 text-[8px]"
+                      : "border-outline-variant/20 bg-surface-bright/10 text-on-surface-variant/90"
+                  )}
+                >
+                  {isOffHours
+                    ? nextStartLabel
+                      ? `Outside - Next ${nextStartLabel}`
+                      : "Outside"
+                    : isMorning
+                      ? "Focused now"
+                      : "Deep work now"}
+                </span>
               </div>
 
               <div className="space-y-6">
-                <div className="bg-surface-bright/10 p-5 border-l border-primary/40">
+                <div
+                  className={cn(
+                    "bg-surface-bright/10 p-5 rounded border-l border-primary/20 transition-colors duration-300",
+                    isMorning
+                      ? "border-primary/80"
+                      : "opacity-60"
+                  )}
+                >
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="font-label text-tertiary/60 text-[9px] uppercase tracking-widest mb-1">
+                      <p
+                        className={cn(
+                          "font-label text-tertiary/60 text-[9px] uppercase tracking-widest mb-1 transition-opacity duration-300",
+                          isMorning ? "opacity-100" : "opacity-60"
+                        )}
+                      >
                         Morning Sprint
                       </p>
-                      <p className="font-headline text-2xl text-primary font-light tracking-tight">
+                      <p
+                        className={cn(
+                          "font-headline text-2xl text-primary font-light tracking-tight transition-opacity duration-300",
+                          isMorning ? "opacity-100" : "opacity-65"
+                        )}
+                      >
                         9:00 AM — 11:30 AM
                       </p>
                     </div>
-                    <span className="material-symbols-outlined text-primary text-xl opacity-30">
+                    <span
+                      className={cn(
+                        "material-symbols-outlined text-primary text-xl transition-opacity duration-300",
+                        isMorning ? "opacity-85" : "opacity-30"
+                      )}
+                    >
                       wb_sunny
                     </span>
                   </div>
                 </div>
 
-                <div className="px-5 py-1">
+                <div
+                  className={cn(
+                    "bg-surface-bright/10 p-5 rounded border-l border-primary/20 transition-colors duration-300",
+                    isAfternoon
+                      ? "border-tertiary/70"
+                      : "opacity-60"
+                  )}
+                >
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="font-label text-on-surface-variant/40 text-[9px] uppercase tracking-widest mb-1">
+                      <p
+                        className={cn(
+                          "font-label text-on-surface-variant/40 text-[9px] uppercase tracking-widest mb-1 transition-opacity duration-300",
+                          isAfternoon ? "opacity-100" : "opacity-60"
+                        )}
+                      >
                         Afternoon Deep Work
                       </p>
-                      <p className="font-headline text-2xl text-on-surface font-extralight tracking-tight opacity-80">
+                      <p
+                        className={cn(
+                          "font-headline text-2xl text-on-surface font-extralight tracking-tight transition-opacity duration-300",
+                          isAfternoon ? "opacity-95" : "opacity-65"
+                        )}
+                      >
                         1:30 PM — 5:30 PM
                       </p>
                     </div>
-                    <span className="material-symbols-outlined text-on-surface-variant text-xl opacity-10">
+                    <span
+                      className={cn(
+                        "material-symbols-outlined text-on-surface-variant text-xl transition-opacity duration-300",
+                        isAfternoon ? "opacity-85" : "opacity-30"
+                      )}
+                    >
                       dark_mode
                     </span>
                   </div>
