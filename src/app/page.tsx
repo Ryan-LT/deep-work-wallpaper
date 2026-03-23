@@ -2,18 +2,113 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-const QUOTES = [
-  "Discipline is choosing between what you want now and what you want most.",
-  "Focus is the discipline of attention.",
-  "Deep work grows in silence you protect.",
-  "Stay in your zone. Let distraction be someone else’s problem.",
-  "Your calendar is your values in motion.",
-  "Choose the task that moves you closer to your future.",
-  "When you drift, return to the plan—without negotiation.",
-  "Distraction is expensive. Discipline is how you pay less.",
-  "Guard your time like it guards your momentum.",
-  "Clarity comes from staying with one thing long enough.",
-];
+type Quote = { text: string; author: string };
+
+function countWords(input: string) {
+  const cleaned = input
+    .replace(/[“”]/g, "")
+    .replace(/[’]/g, "'")
+    .replace(/[^A-Za-z0-9'\s-]+/g, " ")
+    .trim();
+  if (!cleaned) return 0;
+  return cleaned.split(/\s+/).filter(Boolean).length;
+}
+
+const MIN_QUOTE_WORDS = 3;
+const MAX_QUOTE_WORDS = 13;
+
+// Stored as raw text to keep the data compact, then parsed into { text, author }.
+const RAW_QUOTES = `
+1. “Discipline is choosing between what you want now and what you want most.” - —
+2. “Focus is the discipline of attention.” - —
+3. “Deep work grows in silence you protect.” - —
+4. “Stay in your zone. Let distraction be someone else’s problem.” - —
+5. “Your calendar is your values in motion.” - —
+6. “Choose the task that moves you closer to your future.” - —
+7. “When you drift, return to the plan—without negotiation.” - —
+8. “Distraction is expensive. Discipline is how you pay less.” - —
+9. “Guard your time like it guards your momentum.” - —
+10. “Clarity comes from staying with one thing long enough.” - —
+11. “What you focus on grows!” - Kelli Wilson
+12. “You can't get attention of one who focused on himself.” - Toba Beta
+13. “Simplicity is ultimately a matter of focus.” - Ann Voskamp
+14. “Focusing is about saying No.” - Steve Jobs
+15. “Find your focus by seeking all that is good in your life.” - Lorii Myers
+16. “If you think you can then you can.” - Stephen Richards
+17. “When you fail, that is when you get closer to success.” - Stephen Richards
+18. “The only time you fail is when you fall down and stay down.” - Stephen Richards
+19. “Doing the tough things sets winners apart from losers.” - Stephen Richards
+20. “Without enthusiasm then what we have surrounded ourselves with becomes worthless.” - Stephen Richards
+21. “No matter how small you start, always dream big.” - Stephen Richards
+22. “Judgment is a negative frequency.” - Stephen Richards
+23. “Cosmic Ordering is a dish best served today.” - Stephen Richards
+24. “Sweep the board with Cosmic Ordering Success.” - Stephen Richards
+25. “There is no eleventh hour with Cosmic Ordering, only the golden hour.” - Stephen Richards
+26. “Whatever your desire, use Cosmic Ordering to get what you require!” - Stephen Richards
+27. “A clever person solves a problem; a wise person uses Cosmic Ordering!” - Stephen Richards
+28. “Everybody talks about being rich, Cosmic Ordering does something about it.” - Stephen Richards
+29. “To fail is nothing, unless you continue to ignore Cosmic Ordering.” - Stephen Richards
+30. “Riches will come when you follow Cosmic Ordering.” - Stephen Richards
+31. “Tell me your story and I will get back your life.” - Stephen Richards
+32. “If you are in a prison of fear ... break out!” - Stephen Richards
+33. “Urgent equals ephemeral, and ephemeral equals unimportant.” - John le Carré
+34. “Don't look at the present storm, but look to the Son coming.” - Anthony Liccione
+35. “Become your own success story, not someone else's.” - Stephen Richards
+36. “Set aside your repertoire of objections and own 100 percent of your focus.” - Lorii Myers
+37. “Run and hide or rise and shine ...” - Stephen Richards
+38. “Positive thinking without any thought is wasted ...” - Stephen Richards
+`;
+
+function parseQuotes(raw: string): Quote[] {
+  const lines = raw
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const parsed: Quote[] = [];
+  for (const line of lines) {
+    const normalized = line
+      .replace(/^\d+\.\s*/, "")
+      .replace(/^\-\s*/, "")
+      .trim();
+
+    // 1) “Quote text” - Author
+    const dashMatch = normalized.match(
+      /^\s*[“"]?(.+?)[”"]?\s*-\s*(.+)\s*$/
+    );
+    if (dashMatch) {
+      const text = dashMatch[1].trim();
+      const author = dashMatch[2].trim() || "—";
+      const wc = countWords(text);
+      if (wc >= MIN_QUOTE_WORDS && wc <= MAX_QUOTE_WORDS) {
+        parsed.push({ text, author });
+      }
+      continue;
+    }
+
+    // 2) Quote... Author  (common WisdomQuotes format: "Quote. Author")
+    const punctMatch = normalized.match(/^(.*?)([.!?])\s+(.+)\s*$/);
+    if (punctMatch) {
+      const text = `${punctMatch[1].trim()}${punctMatch[2]}`.trim();
+      const author = punctMatch[3].replace(/\s*\(.*\)\s*$/, "").trim();
+      const wc = countWords(text);
+      if (wc >= MIN_QUOTE_WORDS && wc <= MAX_QUOTE_WORDS) {
+        parsed.push({ text, author: author || "—" });
+      }
+      continue;
+    }
+
+    // 3) Fallback: line as quote, no author.
+    const wc = countWords(normalized);
+    if (wc >= MIN_QUOTE_WORDS && wc <= MAX_QUOTE_WORDS) {
+      parsed.push({ text: normalized, author: "—" });
+    }
+  }
+
+  return parsed;
+}
+
+const QUOTES: Quote[] = parseQuotes(RAW_QUOTES);
 
 function formatLocalTime(d: Date) {
   const hh = String(d.getHours()).padStart(2, "0");
@@ -147,9 +242,12 @@ export default function Home() {
                 </h1>
               </div>
 
-              <div className="pt-6 max-w-[280px] border-t border-outline-variant/10 mt-8">
+              <div className="pt-6 max-w-[480px] border-t border-outline-variant/10 mt-8">
                 <p className="text-on-surface-variant font-body leading-relaxed text-sm italic opacity-70">
-                  &quot;{quote}&quot;
+                  &quot;{quote.text}&quot;
+                </p>
+                <p className="text-tertiary/60 font-label text-[9px] uppercase tracking-widest mt-2 opacity-60">
+                  {quote.author}
                 </p>
               </div>
             </div>
